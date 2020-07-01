@@ -33,7 +33,6 @@ func main() {
 	tabla := multiplicar(9)
 
 	for i := 0; i < 10; i++ {
-
 		fmt.Println(tabla())
 	}
 	fmt.Println(tabla())
@@ -87,6 +86,7 @@ func manipularMapas() {
 	numbersPrime[15] = false
 	fmt.Println(numbersPrime)
 	paisesCapitales := map[string]string{
+
 		"Colombia":  "Bogota",
 		"Argentina": "Buenos Aires",
 		"España":    "Madrid",
@@ -94,7 +94,6 @@ func manipularMapas() {
 	delete(paisesCapitales, "Colombia")
 	fmt.Println(paisesCapitales)
 	for pais, capital := range paisesCapitales {
-
 		fmt.Print(capital, " es capital de ", pais, "\n")
 	}
 
