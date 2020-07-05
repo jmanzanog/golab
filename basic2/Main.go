@@ -29,5 +29,6 @@ func main() {
 	jose := _interface.Humano{Nombre: "Jose"}
 
 	_interface.Animal.Respirar(&jose)
+	_interface.Stuff.Respirar(&jose)
 
 }

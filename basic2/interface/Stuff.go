@@ -1,5 +1,5 @@
 package _interface
 
-type Animal interface {
+type Stuff interface {
 	Respirar()
 }
