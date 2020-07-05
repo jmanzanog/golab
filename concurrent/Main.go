@@ -1,90 +1,56 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
 )
 
-type DNS struct {
-	URL     string
-	Channel chan map[string]string
+type DNS []struct {
+	URL string `json:"url"`
 }
 
 var nextInt = intSeq()
+var channel = make(chan map[string]string)
+var methodGET = "GET"
 
 func main() {
 
-	channel := make(chan map[string]string)
-
-	facebokDNS := new(DNS)
-	facebokDNS.Channel = channel
-	facebokDNS.URL = "https://www.facebook.com/"
-
-	googleDNS := new(DNS)
-	googleDNS.Channel = channel
-	googleDNS.URL = "https://www.google.com/"
-
-	netflixDNS := new(DNS)
-	netflixDNS.Channel = channel
-	netflixDNS.URL = "https://www.netflix.com/"
-
-	golangDNS := new(DNS)
-	golangDNS.Channel = channel
-	golangDNS.URL = "https://golang.org/"
-
-	digitaloceanDNS := new(DNS)
-	digitaloceanDNS.Channel = channel
-	digitaloceanDNS.URL = "https://www.digitalocean.com/"
-
-	cloudflareDNS := new(DNS)
-	cloudflareDNS.Channel = channel
-	cloudflareDNS.URL = "https://www.cloudflare.com/"
-
-	listDNS := []DNS{
-		*facebokDNS,
-		*googleDNS,
-		//*netflixDNS,
-		*golangDNS,
-		*digitaloceanDNS,
-		*cloudflareDNS,
+	content, err := ioutil.ReadFile("./concurrent/dns.js")
+	if err != nil {
+		log.Fatal(err)
 	}
+	fmt.Printf("File contents:\n%s", content)
+
+	var listDNS DNS
+	if err := json.Unmarshal(content, &listDNS); err != nil {
+		panic(err)
+	}
+	fmt.Println(listDNS)
 
 	for _, dns := range listDNS {
-		go HealthCheckServer(dns.URL, dns.Channel)
+		go HealthCheckServer(dns.URL, channel)
 	}
+	WaitAndPrintGoRoutines(len(listDNS), channel)
 
-	primero := <-channel
-	segundo := <-channel
-	tercero := <-channel
-	cuarto := <-channel
-	quinto := <-channel
+}
 
-	Result := []map[string]string{
-		primero,
-		segundo,
-		tercero,
-		cuarto,
-		quinto,
+func WaitAndPrintGoRoutines(goRoutineStackLen int, channel chan map[string]string) {
+	var listValues []map[string]string
+	for i := 0; i < goRoutineStackLen; i++ {
+		listValues = append(listValues, <-channel)
 	}
-
-	//netflixDNS.Delay = <-channel
-	//golangDNS.Delay = <-channel
-
-	for _, value := range Result {
+	for _, value := range listValues {
 		fmt.Printf("%s -> %s, posicion %s\n", value["Server"], value["Delay"], value["Position"])
 
 	}
-
-	//fmt.Printf("%s -> %s, posicion %s\n", primero["Server"], primero["Delay"],primero["Position"])
-	//fmt.Printf("%s -> %s, posicion %s\n", segundo["Server"], segundo["Delay"],segundo["Position"])
-
-	//fmt.Printf("%s -> %v\n", netflixDNS.Name, netflixDNS.Delay)
-	//fmt.Printf("%s -> %v\n", golangDNS.Name, golangDNS.Delay)
-
 }
+
 func HealthCheckServer(serverDns string, channel chan map[string]string) (healthy bool) {
 	init := time.Now()
 	defer func() {
@@ -94,30 +60,34 @@ func HealthCheckServer(serverDns string, channel chan map[string]string) (health
 			"Server":   serverDns}
 	}()
 	requestURI, err := url.ParseRequestURI(serverDns)
+	if err != nil {
+		return false
+	}
+	client := &http.Client{}
+	req, err := http.NewRequest(methodGET, requestURI.String(), nil)
+	if err != nil {
+		return errorFunc(err)
+	}
 	for i := 0; i < 100; i++ {
-		if err != nil {
-			return false
-		}
-		method := "GET"
-
-		client := &http.Client{}
-		req, err := http.NewRequest(method, requestURI.String(), nil)
-
-		if err != nil {
-			fmt.Println(err)
-			return false
-		}
-		res, err := client.Do(req)
-		fmt.Printf("Ping # %d al server %s %s\n", i+1, requestURI.String(), res.Status)
-		defer res.Body.Close()
-		if res.StatusCode == 200 {
-			healthy = true
+		if res, err := client.Do(req); err != nil {
+			return errorFunc(err)
 		} else {
-			return false
+			fmt.Printf("Ping # %d to server %s %s\n", i+1, requestURI.String(), res.Status)
+			//defer res.Body.Close()
+			if res.StatusCode == 200 {
+				healthy = true
+			} else {
+				return false
+			}
 		}
 
 	}
 	return healthy
+}
+
+func errorFunc(err error) bool {
+	log.Fatal(err)
+	return false
 }
 func intSeq() func() int {
 	i := 0
