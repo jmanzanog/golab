@@ -1,0 +1,4 @@
+curl --location --request POST 'http://localhost:4400/create' \
+--header 'Content-Type: application/json' \
+--data-raw '{"name":"Jose Manzano", "email":"user.email@email.com"}'
+
